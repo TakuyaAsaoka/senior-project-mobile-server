@@ -1,6 +1,9 @@
 import { Request, Response } from 'express';
 
 const knex = require('../knex.js');
+// const environment = process.env.NODE_ENV || 'development';
+// const config = require('../knexfile.js')[environment];
+// const knex = require('knex')(config);
 
 var express = require('express');
 var router = express.Router();
@@ -17,7 +20,7 @@ router.get('/', async (req: Request, res: Response) => {
 });
 
 // POST USER追加
-app.post('/', async (req: Request, res: Response) => {
+router.post('/', async (req: Request, res: Response) => {
   try {
     const { name, email, password } = req.body;
     await knex('USER')
