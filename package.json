@@ -3,9 +3,10 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "start": "npm run build && node ./dist/src/bin/www",
+    "start": "node ./dist/src/bin/www.js",
     "build": "tsc",
-    "dev": "nodemon"
+    "dev": "nodemon",
+    "renderbuild": "npm install && npm run build && npx knex migrate:latest && npx knex seed:run"
   },
   "dependencies": {
     "cookie-parser": "~1.4.4",
