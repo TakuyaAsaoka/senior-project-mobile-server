@@ -8,6 +8,7 @@ var logger = require('morgan');
 
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
+var favoritesRouter = require('./routes/favorites');
 
 var app = express();
 
@@ -22,7 +23,16 @@ app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', indexRouter);
-app.use('/users', usersRouter);
+app.use('/api/users', usersRouter);
+app.use('/api/favorites', favoritesRouter);
+
+// CORS対策。一旦、全許可なので要修正。
+app.use((req: Request, res: Response, next: () => void) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  next();
+});
 
 // catch 404 and forward to error handler
 app.use(function (req: Request, res: Response, next: (err: any) => void) {
