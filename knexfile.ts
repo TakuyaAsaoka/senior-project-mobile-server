@@ -12,11 +12,11 @@ module.exports = {
       database: process.env.DB_NAME || 'app_data',
     },
     migrations: {
-      directory: 'db/migrations',
+      directory: '../db/migrations',
       tableName: 'knex_migrations',
     },
     seeds: {
-      directory: 'db/seeds',
+      directory: '../db/seeds',
     },
   },
 
@@ -24,11 +24,11 @@ module.exports = {
     client: 'postgresql',
     connection: process.env.DB_URL,
     migrations: {
-      directory: 'db/migrations',
+      directory: '../db/migrations',
       tableName: 'knex_migrations',
     },
     seeds: {
-      directory: 'db/seeds',
+      directory: '../db/seeds',
     },
   },
 };
