@@ -6,7 +6,7 @@
     "start": "node ./dist/src/bin/www.js",
     "build": "tsc",
     "dev": "nodemon",
-    "renderbuild": "npm install && npm run build && npx knex migrate:latest --knexfile ./knexfile.js && npx knex seed:run --knexfile ./knexfile.js"
+    "renderbuild": "npm install && npm run build && npx knex migrate:latest --knexfile dist/knexfile.js && npx knex seed:run --knexfile dist/knexfile.js"
   },
   "dependencies": {
     "cookie-parser": "~1.4.4",
