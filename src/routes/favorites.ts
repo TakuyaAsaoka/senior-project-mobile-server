@@ -88,8 +88,7 @@ router.post('/', async (req: Request, res: Response, next: () => void) => {
 
 // DELETE FAVORITEテーブル削除
 router.delete('/', (req: Request, res: Response, next: () => void) => {
-  const { id } = req.params;
-  knex('users')
+  knex('FAVORITE')
     .del()
     .then(() => {
       res.sendStatus(200);
