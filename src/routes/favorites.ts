@@ -8,7 +8,7 @@ const knex = require('../knex.js');
 var express = require('express');
 var router = express.Router();
 
-// GET 県別いいね一覧データ取得 { name: "愛知県", imgSrc: "https~", number: 3 }
+// GET 県別いいね一覧データ取得 { prefecture: "愛知県", imgSrc: "https~", number: 3 }
 router.get('/', async (req: Request, res: Response, next: () => void) => {
   try {
     // FAVORITEテーブル取得
@@ -23,19 +23,19 @@ router.get('/', async (req: Request, res: Response, next: () => void) => {
 
       // 既にresultに県データがあるか確認
       result.forEach((obj: any) => {
-        if (obj.name === favorite1.prefecture) flg = false;
+        if (obj.prefecture === favorite1.prefecture) flg = false;
       });
 
       // 県データを作り込み、result配列にpushする
       if (flg) {
-        elm.name = favorite1.prefecture;
+        elm.prefecture = favorite1.prefecture;
         elm.imgSrc = favorite1.images[0];
 
-        let count = 0;
+        let number = 0;
         favorites.forEach((favorite2: any) => {
-          if (favorite1.name === favorite2.name) count++;
+          if (favorite1.prefecture === favorite2.prefecture) number++;
         });
-        elm.number = count;
+        elm.number = number;
 
         result.push(elm);
       }
@@ -74,11 +74,28 @@ router.get('/:prefecture', async (req: Request, res: Response, next: () => void)
 
 // POST FAVORITEテーブル追加
 router.post('/', async (req: Request, res: Response, next: () => void) => {
+  // 引数で受け取ったオブジェクトのキャメルケースのプロパティをスネークケースに変換して返す
+  // { userId: 1, phoneNumber: 00} → { user_id: 1, phone_number: 00 }
+  function convertObjectKeysToSnakeCase(obj: Record<string, any>): Record<string, any> {
+    const convertedObj: Record<string, any> = {};
+
+    for (const key in obj) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        const snakeCaseKey = key.replace(/[A-Z]/g, (match) => `_${match.toLowerCase()}`);
+        convertedObj[snakeCaseKey] = obj[key];
+      }
+    }
+
+    return convertedObj;
+  }
+
   const body = await req.body;
+  const convertBody = convertObjectKeysToSnakeCase(body);
+
   knex('FAVORITE')
-    .insert(body)
+    .insert(convertBody)
     .then(() => {
-      res.set('content-type', 'application/json').status(200).send(body);
+      res.set('content-type', 'application/json').status(200).send(convertBody);
     })
     .catch((err: any) => {
       console.error(err);

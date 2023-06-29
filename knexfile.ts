@@ -12,11 +12,11 @@ module.exports = {
       database: process.env.DB_NAME || 'senior_project',
     },
     migrations: {
-      directory: '../db/migrations',
+      directory: './db/migrations',
       tableName: 'knex_migrations',
     },
     seeds: {
-      directory: '../db/seeds',
+      directory: './db/seeds',
     },
   },
 
