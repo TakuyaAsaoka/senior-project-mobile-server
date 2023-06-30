@@ -1,9 +1,6 @@
 import { Request, Response } from 'express';
 
 const knex = require('../knex.js');
-// const environment = process.env.NODE_ENV || 'development';
-// const config = require('../knexfile.js')[environment];
-// const knex = require('knex')(config);
 
 var express = require('express');
 var router = express.Router();
