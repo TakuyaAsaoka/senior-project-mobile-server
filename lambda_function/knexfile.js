@@ -1,6 +1,6 @@
 "use strict";
 // Update with your config settings.
-// require("dotenv").config({ path: ".env" });
+require("dotenv").config({ path: ".env" });
 /**
  * @type { Object.<string, import("knex").Knex.Config> }
  */
@@ -12,7 +12,7 @@ module.exports = {
       port: 5432,
       user: process.env.DB_USER || "postgresql",
       database: process.env.DB_NAME || "tokiTabi",
-      password: "",
+      password: process.env.RDS_PASSWORD,
     },
     migrations: {
       directory: "../db/migrations",
