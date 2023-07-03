@@ -12,7 +12,7 @@ module.exports = {
       port: 5432,
       user: process.env.DB_USER || "postgresql",
       database: process.env.DB_NAME || "tokiTabi",
-      password: "G49Oi8CTEiuZCmzgYDDf",
+      password: "",
     },
     migrations: {
       directory: "../db/migrations",
@@ -25,11 +25,11 @@ module.exports = {
   production: {
     client: "postgresql",
     connection: {
-      host: "tokitabi.c7jkgtibfhqn.us-east-1.rds.amazonaws.com",
+      host: process.env.RDS_HOSTNAME,
       port: 5432,
-      user: process.env.DB_USER || "postgresql",
-      database: process.env.DB_NAME || "tokiTabi",
-      password: "G49Oi8CTEiuZCmzgYDDf",
+      user: process.env.RDS_USERNAME,
+      database: process.env.RDS_DB_NAME,
+      password: process.env.RDS_PASSWORD,
     },
     migrations: {
       directory: "../db/migrations",
