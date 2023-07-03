@@ -11,7 +11,10 @@ exports.handler = async (event, context) => {
     const path = event.path;
     // リクエストメソッドの識別
     const method = event.httpMethod;
-    console.log("method: ", method);
+    console.log("RDS_HOSTNAME: ", process.env.RDS_HOSTNAME);
+    console.log("RDS_USERNAME: ", process.env.RDS_USERNAME);
+    console.log("RDS_DB_NAME: ", process.env.RDS_DB_NAME);
+    console.log("NODE_ENV: ", process.env.NODE_ENV);
 
     // エンドポイントごとの処理を分岐
     switch (path) {
