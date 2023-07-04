@@ -26,7 +26,12 @@ exports.handler = async (event, context) => {
             return deleteAllFavorites(event, context);
         }
       case `/api/favorites/${prefecture}`:
-        return getDetail(event, context);
+        switch (method) {
+          case "GET":
+            return getDetail(event, context);
+          case "PATCH":
+            return patchHasVisited(event, context);
+        }
       // 他のエンドポイントの処理を追加
       default:
         return {
@@ -39,7 +44,7 @@ exports.handler = async (event, context) => {
     console.error(error);
     return {
       statusCode: 500,
-      body: "Errorです",
+      body: "Error",
     };
   }
 };
@@ -48,19 +53,61 @@ exports.handler = async (event, context) => {
 async function getRandomCards(event, context) {
   try {
     const number = 10;
-    const start = Math.floor(Math.random() * 15001);
-    console.log("number:", number);
-    console.log("start:", start);
-    const url = `https://map.yahooapis.jp/search/local/V1/localSearch?appid=dj00aiZpPU9USnZwMHRxWDQ5TCZzPWNvbnN1bWVyc2VjcmV0Jng9NDQ-&output=json&results=${number}&start=${start}&gc=03,0303`;
-    console.log("url:", url);
-    const cards = await fetch(url);
+    const start = Math.floor(Math.random() * 201);
+    const url = `https://map.yahooapis.jp/search/local/V1/localSearch?appid=dj00aiZpPU9USnZwMHRxWDQ5TCZzPWNvbnN1bWVyc2VjcmV0Jng9NDQ-&output=json&results=${number}&start=${start}&gc=0303&image=true`;
+    const res = await fetch(url);
+    const data = await res.json();
+    const cards = data.Feature;
+
+    // レスポンスを作成
+    const result = cards.map(async (card) => {
+      const point = card.Geometry.Coordinates.split(",");
+      const x = point[0];
+      const y = point[1];
+      const geoRes = await fetch(
+        `http://geoapi.heartrails.com/api/json?method=getAreas&x=${x}&y=${y}`
+      );
+      const geoData = await geoRes.json();
+      const prefecture = geoData.response.location[0].prefecture;
+      const postal = geoData.response.location[0].postal;
+      const zipCode = postal.slice(0, 3) & "-" & postal.slice(-4);
+      return {
+        name: card.Name,
+        prefecture: prefecture,
+        image: [card.Property.LeadImage],
+        price: "",
+        access: "",
+        zipCode: zipCode,
+        address: card.Property.Address,
+        business: "",
+        phoneNumber: card.Property.Tel1 ?? "",
+        parking:
+          card.Property.ParkingFlag === "1" ||
+          card.Property.ParkingFlag === "true"
+            ? "有り"
+            : card.Property.ParkingFlag === "0" ||
+              card.Property.ParkingFlag === "false"
+            ? "無し"
+            : "",
+        toilet: "",
+        closed: "",
+        publicTransport: card.Property.Station.map(
+          (elm) => elm.Railway & " " & elm.Name & "駅"
+        ),
+        car: [],
+        hasVisited: false,
+        latitude: y,
+        longitude: x,
+      };
+    });
+
     // プロキシ統合形式に準拠したレスポンスを構築
     const response = {
       statusCode: 200,
       headers: {
         "Content-Type": "application/json",
       },
-      body: "JSON.stringify(cards)",
+      body: JSON.stringify(result),
     };
 
     return response;
@@ -139,8 +186,11 @@ async function getFavorites(event, context) {
 // POST /api/favorites
 async function postFavorites(event, context) {
   try {
-    console.log("event.body", event.body);
-    await knex("FAVORITE").insert(event.body);
+    stringBody = JSON.stringify(event.body);
+    const replacedBody = stringBody.replace(/\n\s+/g, "");
+    const body = JSON.parse(replacedBody);
+    const parsedBody = JSON.parse(body);
+    await knex("FAVORITE").insert(parsedBody);
 
     const response = {
       statusCode: 200,
@@ -150,6 +200,7 @@ async function postFavorites(event, context) {
   } catch (err) {
     console.error(err);
 
+    // エラーレスポンスもプロキシ統合形式に準拠した形式で構築
     const errorResponse = {
       statusCode: 500,
       headers: {
@@ -162,12 +213,13 @@ async function postFavorites(event, context) {
   }
 }
 
+// GET /api/favorites/:prefecture
 async function getDetail(event, context) {
   const prefecture = decodeURIComponent(event.pathParameters.prefecture);
   console.log("prefecture:", prefecture);
   try {
     const favorites = await knex("FAVORITE")
-      .select("id", "name", "images", "price", "access")
+      .select("id", "name", "images", "price", "access", "has_visited")
       .where({ prefecture: prefecture });
 
     const result = favorites.map((favorite) => ({
@@ -176,6 +228,7 @@ async function getDetail(event, context) {
       imgSrc: favorite.images,
       price: favorite.price,
       access: favorite.access,
+      hasVisited: favorite.has_visited,
     }));
 
     const response = {
@@ -199,6 +252,52 @@ async function getDetail(event, context) {
   }
 }
 
+// PATCH /api/favorites/:id
+async function patchHasVisited(event, context) {
+  const id = Number(event.pathParameters.prefecture); // リクエストからidを取得する必要があります
+
+  try {
+    const favorite = await knex("FAVORITE").where({ id }).first(); // 指定されたidのレコードを取得します
+
+    if (!favorite) {
+      const errorResponse = {
+        statusCode: 404,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ message: "Favorite not found" }),
+      };
+      return errorResponse;
+    }
+
+    const updatedHasVisited = !favorite.has_visited; // has_visitedの値を切り替えます
+
+    await knex("FAVORITE")
+      .where({ id })
+      .update({ has_visited: updatedHasVisited }); // レコードを更新します
+
+    const response = {
+      statusCode: 200,
+      body: JSON.stringify({ message: "Successfully updated" }),
+    };
+
+    return response;
+  } catch (err) {
+    console.error(err);
+
+    const errorResponse = {
+      statusCode: 500,
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ message: "Internal server error" }),
+    };
+
+    return errorResponse;
+  }
+}
+
+// DELETE /api/favorites/all
 async function deleteAllFavorites(event, context) {
   try {
     await knex("FAVORITE").del();
