@@ -22,7 +22,7 @@ exports.handler = async (event, context) => {
           case "GET":
             return getDetail(event, context);
         }
-      case `/api/cards/${prefecture}`:
+      case `/api/cards/${user}`:
         return getRandomCards(event, context);
       case "/api/favorites":
         switch (method) {
@@ -57,17 +57,15 @@ exports.handler = async (event, context) => {
     }
   } catch (error) {
     // エラーハンドリング
-    console.error(error);
-    // const name = event.pathParameters.name;
-    // const user = event.pathParameters.user;
-    // const pathParameters = event.pathParameters;
+    console.error(err);
 
+    // エラーレスポンスもプロキシ統合形式に準拠した形式で構築
     const errorResponse = {
       statusCode: 500,
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ user: user, name: name }),
+      body: JSON.stringify({ message: "Internal server error" }),
     };
 
     return errorResponse;
@@ -77,12 +75,67 @@ exports.handler = async (event, context) => {
 // GET /api/cards/:user
 async function getRandomCards(event, context) {
   try {
-    const number = 10;
-    const start = Math.floor(Math.random() * 201);
-    const url = `https://map.yahooapis.jp/search/local/V1/localSearch?appid=dj00aiZpPU9USnZwMHRxWDQ5TCZzPWNvbnN1bWVyc2VjcmV0Jng9NDQ-&output=json&results=${number}&start=${start}&gc=0303&image=true`;
-    const res = await fetch(url);
-    const data = await res.json();
-    const cards = data.Feature;
+    const blackList = [
+      "小杉農園",
+      "ポレポレ農園",
+      "佐倉きのこ園",
+      "無添加",
+      "ブルーベリー",
+      "直売所",
+      "海の公園",
+      "ふくろうの家",
+      "占い",
+    ];
+    const arrOfReq = [
+      "https://map.yahooapis.jp/search/local/V1/localSearch?appid=dj00aiZpPU9USnZwMHRxWDQ5TCZzPWNvbnN1bWVyc2VjcmV0Jng9NDQ-&output=json&gc=0303001&image=true",
+      "https://map.yahooapis.jp/search/local/V1/localSearch?appid=dj00aiZpPU9USnZwMHRxWDQ5TCZzPWNvbnN1bWVyc2VjcmV0Jng9NDQ-&output=json&gc=0303002&image=true",
+      "https://map.yahooapis.jp/search/local/V1/localSearch?appid=dj00aiZpPU9USnZwMHRxWDQ5TCZzPWNvbnN1bWVyc2VjcmV0Jng9NDQ-&output=json&gc=0303003&image=true",
+      "https://map.yahooapis.jp/search/local/V1/localSearch?appid=dj00aiZpPU9USnZwMHRxWDQ5TCZzPWNvbnN1bWVyc2VjcmV0Jng9NDQ-&output=json&gc=0303004&image=true",
+      "https://map.yahooapis.jp/search/local/V1/localSearch?appid=dj00aiZpPU9USnZwMHRxWDQ5TCZzPWNvbnN1bWVyc2VjcmV0Jng9NDQ-&output=json&gc=0303005&image=true",
+      "https://map.yahooapis.jp/search/local/V1/localSearch?appid=dj00aiZpPU9USnZwMHRxWDQ5TCZzPWNvbnN1bWVyc2VjcmV0Jng9NDQ-&output=json&gc=0303011&image=true",
+    ];
+
+    function generateRandomArray(number, max) {
+      const result = [];
+      // 重複のないランダムな数値を生成
+      while (result.length < number) {
+        const randomNumber = Math.floor(Math.random() * max);
+        if (result.indexOf(randomNumber) === -1) {
+          result.push(randomNumber);
+        }
+      }
+      return result;
+    }
+
+    const arrOfRes = await Promise.all(
+      arrOfReq.map(async (url) => {
+        const res = await fetch(url);
+        const data = await res.json();
+        return data.Feature;
+      })
+    );
+    const rowCards = arrOfRes.flat();
+    const rowDeck = rowCards.filter((card) => card.hasOwnProperty("Geometry"));
+    const deck = rowDeck.filter((card) => {
+      let flag = true;
+      for (const elm of blackList) {
+        if (card.Name.includes(elm)) {
+          flag = false;
+        }
+      }
+      return flag;
+    });
+    const randNums = generateRandomArray(10, deck.length);
+    const cards = deck.filter((card, index) => {
+      let flag = false;
+      for (const num of randNums) {
+        if (num === index) {
+          flag = true;
+        }
+      }
+      return flag;
+    });
+    console.log("枚数：", deck.length);
     const user = decodeURIComponent(event.pathParameters.user);
 
     // ユーザーのFAVORITEテーブルを取得
@@ -92,7 +145,7 @@ async function getRandomCards(event, context) {
     const result = await Promise.all(
       cards
         .filter((card) => {
-          const flag = true;
+          let flag = true;
           for (const favorite of favorites) {
             if (card.Name === favorite.name) {
               flag = false;
@@ -106,9 +159,10 @@ async function getRandomCards(event, context) {
           const y = point[1];
           const geoRes = await fetch(
             `http://geoapi.heartrails.com/api/json?method=searchByGeoLocation&x=${x}&y=${y}`
-          );
+          ).then((data) => {
+            return data;
+          });
           const geoData = await geoRes.json().then((data) => {
-            console.log(data);
             return data;
           });
           const prefecture = geoData.response.location[0].prefecture;
@@ -117,13 +171,13 @@ async function getRandomCards(event, context) {
           return {
             name: card.Name ?? "",
             prefecture: prefecture,
-            image: [card.Property.LeadImage],
-            price: "",
-            access: "",
-            zipCode: zipCode ?? "",
+            images: [card.Property.LeadImage],
+            price: card.Property.Price ? Number(card.Property.Price) : 0,
+            access: "電車",
+            zip_code: zipCode ?? "",
             address: card.Property.Address ?? "",
             business: "",
-            phoneNumber: card.Property.Tel1 ?? "",
+            phone_number: card.Property.Tel1 ?? "",
             parking:
               card.Property.ParkingFlag === "1" ||
               card.Property.ParkingFlag === "true"
@@ -132,15 +186,15 @@ async function getRandomCards(event, context) {
                   card.Property.ParkingFlag === "false"
                 ? "無し"
                 : "",
-            toilet: "",
-            closed: "",
-            publicTransport: card.Property.Station
+            toilet: "有り",
+            closed: "年中無休",
+            public_transport: card.Property.Station
               ? card.Property.Station.map(
                   (elm) => elm.Railway + " " + elm.Name + "駅"
                 )
               : [],
             car: [],
-            hasVisited: false,
+            has_visited: false,
             latitude: y,
             longitude: x,
           };
@@ -301,19 +355,14 @@ async function getDetail(event, context) {
     return response;
   } catch (err) {
     console.error(err);
-    const user = event.queryStringParameters.user;
-    const name = event.queryStringParameters.name;
+
     // エラーレスポンスもプロキシ統合形式に準拠した形式で構築
     const errorResponse = {
       statusCode: 500,
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        message: "Internal server error",
-        user: user,
-        name: name,
-      }),
+      body: JSON.stringify({ message: "Internal server error" }),
     };
 
     return errorResponse;
